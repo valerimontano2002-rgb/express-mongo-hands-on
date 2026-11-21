@@ -67,7 +67,15 @@ app.get("/", async (req, res) => {
             res.redirect("/");
         } else {
             // If items are found, render the 'list' EJS template with the found items
-            res.render("list", { listTitle: "Today", newListItems: foundItems });
+            
+const allLists = await List.find({}).sort({ name: 1 });
+
+res.render("list", {
+  listTitle: "Today",
+  newListItems: foundItems,
+  allLists: allLists
+});
+
         }
     } catch (err) {
         // Log any errors and send a server error response
