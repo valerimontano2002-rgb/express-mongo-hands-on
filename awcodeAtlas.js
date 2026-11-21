@@ -29,7 +29,6 @@ mongoose.connect(MONGODB_ATLAS_URI)
   .then(() => console.log("Conectado a MongoDB Atlas"))
   .catch(err => console.error("Error de MongoDB:", err.message));
 
-mongoose.connect(MONGODB_ATLAS_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
 
 // Define a schema for the items in the to-do list, consisting of a single field 'name'
