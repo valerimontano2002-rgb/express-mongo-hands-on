@@ -13,7 +13,7 @@ app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-// Modelos de MongoDB
+// Modelos de tareas y listas
 const itemsSchema = new mongoose.Schema({
   name: String
 });
@@ -27,12 +27,30 @@ const listSchema = new mongoose.Schema({
 
 const List = mongoose.model("List", listSchema);
 
-// Tareas de ejemplo
+// Tareas iniciales
 const defaultItems = [
   { name: "Welcome to your todolist!" },
   { name: "Hit the + button to add a new item." },
   { name: "<-- Hit this to delete an item." }
 ];
+
+// Consultar todas las listas
+// Ocultar Favicon.ico sin borrar datos de MongoDB
+async function obtenerListas() {
+  return List.find({
+    name: { $ne: "Favicon.ico" }
+  }).sort({ name: 1 });
+}
+
+// Evitar que el navegador cree una lista Favicon.ico
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).end();
+});
+
+// Página About
+app.get("/about", (req, res) => {
+  res.render("about");
+});
 
 // RUTA PRINCIPAL: TODAY
 app.get("/", async (req, res) => {
@@ -44,9 +62,7 @@ app.get("/", async (req, res) => {
       return res.redirect("/");
     }
 
-    // Consultar todas las listas de MongoDB Atlas
-    const allLists = await List.find({})
-      .sort({ name: 1 });
+    const allLists = await obtenerListas();
 
     return res.render("list", {
       listTitle: "Today",
@@ -55,20 +71,18 @@ app.get("/", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Error en la lista principal:", err);
+    console.error("Error al consultar Today:", err);
+
     return res.status(500).send(
       "Error al recuperar las tareas"
     );
   }
 });
 
-// RUTA INFORMATIVA
-app.get("/about", (req, res) => {
-  res.render("about");
-});
-
-// RUTAS DE LISTAS PERSONALIZADAS
+// RUTA PARA LISTAS PERSONALIZADAS
+// Ejemplos: /Trabajo, /Compras
 app.get("/:customListName", async (req, res) => {
+
   const customListName = _.capitalize(
     req.params.customListName
   );
@@ -82,7 +96,7 @@ app.get("/:customListName", async (req, res) => {
       name: customListName
     });
 
-    // Crear lista si todavía no existe
+    // Crear la lista si todavía no existe
     if (!foundList) {
       foundList = new List({
         name: customListName,
@@ -92,9 +106,8 @@ app.get("/:customListName", async (req, res) => {
       await foundList.save();
     }
 
-    // Obtener todas las listas para el desplegable
-    const allLists = await List.find({})
-      .sort({ name: 1 });
+    // Obtener las listas para el desplegable
+    const allLists = await obtenerListas();
 
     return res.render("list", {
       listTitle: foundList.name,
@@ -103,51 +116,61 @@ app.get("/:customListName", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Error al abrir la lista:", err);
+    console.error("Error al consultar una lista:", err);
+
     return res.status(500).send(
       "Error al recuperar la lista"
     );
   }
 });
 
-// AÑADIR TAREAS
+// AÑADIR NUEVAS TAREAS
 app.post("/", async (req, res) => {
+
   const itemName = (req.body.newItem || "").trim();
-  const listName = req.body.list;
+  const listName = req.body.list || "Today";
+
+  const destino = listName === "Today"
+    ? "/"
+    : "/" + encodeURIComponent(listName);
 
   if (!itemName) {
-    return res.redirect(
-      listName === "Today"
-        ? "/"
-        : "/" + encodeURIComponent(listName || "")
-    );
+    return res.redirect(destino);
   }
 
   try {
+
     if (listName === "Today") {
-      await Item.create({ name: itemName });
-      return res.redirect("/");
+
+      await Item.create({
+        name: itemName
+      });
+
+    } else {
+
+      const foundList = await List.findOne({
+        name: listName
+      });
+
+      if (!foundList) {
+        return res.status(404).send(
+          "Lista no encontrada"
+        );
+      }
+
+      foundList.items.push({
+        name: itemName
+      });
+
+      await foundList.save();
     }
 
-    const foundList = await List.findOne({
-      name: listName
-    });
-
-    if (!foundList) {
-      return res.status(404).send(
-        "Lista no encontrada"
-      );
-    }
-
-    foundList.items.push({ name: itemName });
-    await foundList.save();
-
-    return res.redirect(
-      "/" + encodeURIComponent(listName)
-    );
+    return res.redirect(destino);
 
   } catch (err) {
-    console.error("Error al guardar la tarea:", err);
+
+    console.error("Error al guardar una tarea:", err);
+
     return res.status(500).send(
       "Error al guardar la tarea"
     );
@@ -156,49 +179,60 @@ app.post("/", async (req, res) => {
 
 // ELIMINAR TAREAS
 app.post("/delete", async (req, res) => {
+
   const checkedItemId = req.body.checkbox;
-  const listName = req.body.listName;
+  const listName = req.body.listName || "Today";
+
+  const destino = listName === "Today"
+    ? "/"
+    : "/" + encodeURIComponent(listName);
 
   try {
+
     if (listName === "Today") {
-      await Item.findByIdAndDelete(checkedItemId);
-      return res.redirect("/");
+
+      await Item.findByIdAndDelete(
+        checkedItemId
+      );
+
+    } else {
+
+      await List.findOneAndUpdate(
+        { name: listName },
+        {
+          $pull: {
+            items: { _id: checkedItemId }
+          }
+        }
+      );
+
     }
 
-    await List.findOneAndUpdate(
-      { name: listName },
-      {
-        $pull: {
-          items: { _id: checkedItemId }
-        }
-      }
-    );
-
-    return res.redirect(
-      "/" + encodeURIComponent(listName)
-    );
+    return res.redirect(destino);
 
   } catch (err) {
-    console.error("Error al eliminar la tarea:", err);
+
+    console.error("Error al eliminar una tarea:", err);
+
     return res.status(500).send(
       "Error al eliminar la tarea"
     );
   }
 });
 
-// CONEXIÓN A MONGODB ATLAS Y ARRANQUE
-async function start() {
+// CONEXIÓN SEGURA CON MONGODB ATLAS
+async function iniciar() {
+
   if (!MONGODB_URI) {
     console.error(
-      "Falta configurar la variable MONGODB_URI"
+      "Falta configurar MONGODB_URI en Render"
     );
     process.exit(1);
   }
 
   try {
-    await mongoose.connect(MONGODB_URI, {
-      dbName: "todolistDB"
-    });
+
+    await mongoose.connect(MONGODB_URI);
 
     console.log("Conectado a MongoDB Atlas");
 
@@ -209,12 +243,14 @@ async function start() {
     });
 
   } catch (err) {
+
     console.error(
       "No se pudo conectar a MongoDB Atlas:",
       err.message
     );
+
     process.exit(1);
   }
 }
 
-start();
+iniciar();
