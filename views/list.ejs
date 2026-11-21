@@ -1,113 +1,135 @@
-<!-- This line includes the "header" partial, which contains common HTML header elements, such as stylesheets or navigation bars. -->
+
 <%- include("header") -%>
 
-  <div class="box" id="heading">
-    <!-- Outputs the listTitle variable where the list's title is displayed in a header tag. -->
-    <h1>
-      <%= listTitle %>
-    </h1>
-    <!-- DESPLEGABLE DINÁMICO DE LISTAS -->
-    <% if (typeof allLists !=='undefined' && allLists.length> 0) { %>
-      <div style="padding-bottom: 18px; text-align: center;">
-        <label for="listNav"
-          style="color: #ffffff; font-size: 13.5px; display: block; margin-bottom: 6px; font-weight: 500;">
-          📋 Listas tareas de VALERIA MONTAÑO:
-        </label>
-        <select id="listNav"
-          onchange="if(this.value) window.location.href = (this.value === 'Today' ? '/' : '/' + encodeURIComponent(this.value));"
-          style="padding: 7px 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; background: #ffffff; color: #333; cursor: pointer; outline: none;">
-          <option value="">-- Selecciona o cambia de lista --</option>
-          <option value="Today" <%=listTitle==='Today' ? 'selected' : '' %>>📅 Today</option>
-          <% allLists.forEach(function(l) { %>
-            <% if (l.name !=='Today' ) { %>
-              <option value="<%= l.name %>" <%=listTitle===l.name ? 'selected' : '' %>>
-                📌 <%= l.name %>
-              </option>
-              <% } %>
-                <% }); %>
-        </select>
+<div class="box" id="heading">
+
+  <h1><%= listTitle %></h1>
+
+  <!-- DESPLEGABLE DE LISTAS -->
+  <div style="padding-bottom: 18px; text-align: center;">
+
+    <label for="listNav"
+      style="color: #ffffff;
+             font-size: 13.5px;
+             display: block;
+             margin-bottom: 6px;
+             font-weight: 500;">
+      Listas tareas de VALERIA MONTAÑO
+    </label>
+
+    <select id="listNav"
+      aria-label="Cambiar de lista de tareas"
+      onchange="window.location.href =
+        (this.value === 'Today'
+          ? '/'
+          : '/' + encodeURIComponent(this.value));"
+      style="padding: 7px 12px;
+             border-radius: 8px;
+             border: 1px solid #ccc;
+             font-size: 14px;
+             background: #ffffff;
+             color: #333;
+             cursor: pointer;
+             outline: none;
+             max-width: 90%;">
+
+      <option value="Today"
+        <%= listTitle === 'Today' ? 'selected' : '' %>>
+        Today
+      </option>
+
+      <% allLists.forEach(function(list) { %>
+        <% if (list.name !== 'Today') { %>
+
+          <option value="<%= list.name %>"
+            <%= listTitle === list.name
+                ? 'selected' : '' %>>
+            <%= list.name %>
+          </option>
+
+        <% } %>
+      <% }); %>
+
+    </select>
+  </div>
+</div>
+
+<!-- LISTA DE TAREAS -->
+<div class="box">
+
+  <% newListItems.forEach(function(item) { %>
+
+    <form action="/delete" method="post">
+
+      <div class="item">
+        <input type="checkbox"
+          name="checkbox"
+          value="<%= item._id %>"
+          aria-label="Eliminar tarea"
+          onchange="this.form.submit()">
+
+        <p>
+          <%= item.name %>
+
+          <% if (
+            typeof item.priority_name !== 'undefined'
+            && item.priority_name
+          ) { %>
+            <span class="badge"
+              style="background-color:
+                <%= item.priority_color %>;">
+              <%= item.priority_name %>
+            </span>
+          <% } %>
+        </p>
       </div>
-      <% } %>
 
-  </div>
+      <input type="hidden"
+        name="listName"
+        value="<%= listTitle %>">
 
-  <div class="box">
-    <!-- This is a loop using EJS templating. For each item in the newListItems array, the function is executed. -->
-    <% newListItems.forEach(function(item){ %>
+    </form>
 
-      <!-- Each item is wrapped in a form with the action set to "/delete" and the method set to "post".
-         This means that when the form is submitted, it will send a POST request to the server at the "/delete" route. -->
-      <form action="/delete" method="post">
-        <div class="item">
-          <!-- This is a checkbox input. When the checkbox is clicked, the onChange event triggers form submission.
-             The value of the checkbox is set to the unique identifier (_id) of the item, which is needed to identify which item to delete. -->
-          <input type="checkbox" name="checkbox" value="<%=item._id%>" onChange="this.form.submit()">
+  <% }); %>
 
-          <!-- This paragraph displays the name of the current item in the list. -->
-          <p>
-            <%=item.name%>
-              <% if (typeof item.priority_name !=='undefined' && item.priority_name) { %>
-                <span class="badge" style="background-color: <%= item.priority_color %>;">
-                  <%= item.priority_name %>
-                </span>
-                <% } %>
-          </p>
-        </div>
+  <!-- FORMULARIO PARA AÑADIR TAREAS -->
+  <form class="item" action="/" method="post">
 
-        <!-- A hidden input field to send the listTitle along with the form so the server knows from which list the item is being deleted. -->
-        <input type="hidden" name="listName" value="<%= listTitle %>"></input>
-      </form>
+    <input type="text"
+      name="newItem"
+      placeholder="Nueva tarea"
+      autocomplete="off"
+      required>
 
-      <!-- The loop ends here. -->
-      <% }) %>
+    <% if (
+      typeof priorities !== 'undefined'
+      && priorities.length > 0
+    ) { %>
 
-        <!-- This form is for adding a new item to the list. -->
-        <form class="item" action="/" method="post">
-          <!-- An input field for the user to type a new item name. -->
-          <input type="text" name="newItem" placeholder="New Item" autocomplete="off">
+      <select name="priorityId"
+        class="priority-select"
+        title="Selecciona urgencia">
 
-          <% if (typeof priorities !=='undefined' && priorities.length> 0) { %>
-            <select name="priorityId" class="priority-select" title="Selecciona urgencia">
-              <option value="">⚪ Sin urgencia</option>
-              <% priorities.forEach(function(p){ %>
-                <option value="<%= p.id %>">
-                  <%= p.icon %>
-                    <%= p.name %>
-                </option>
-                <% }) %>
-            </select>
-            <% } %>
+        <option value="">Sin urgencia</option>
 
-              <!-- A submit button for the form to add a new item to the list. The value of the button is set to the listTitle. -->
-              <button type="submit" name="list" value="<%= listTitle %>">+</button>
-        </form>
-  </div>
+        <% priorities.forEach(function(p) { %>
+          <option value="<%= p.id %>">
+            <%= p.name %>
+          </option>
+        <% }); %>
 
-  <!-- This line includes the "footer" partial, which contains common HTML footer elements. -->
-  <%- include("footer") -%>
+      </select>
 
-    <!--
-    When a user checks the checkbox next to an item, the onChange event is fired because the state of the checkbox has changed.
-     The onChange event is set to submit the form it's contained in, which sends a POST request to the server's /delete route.
-      The server then processes this request, using the unique _id provided by the checkbox's value to identify and
-       delete the correct item from the database. The hidden input named listName is also sent along with the request, 
-       xso the server knows from which specific list the item is being deleted.
-  -->
+    <% } %>
 
-    <!--
-    The this.form.submit() code is executed in the context of the input element that triggered the onChange event. 
-    In JavaScript, this refers to the object that is currently executing the code. When a checkbox's state is changed, 
-    this refers to that checkbox input element.
+    <button type="submit"
+      name="list"
+      value="<%= listTitle %>">
+      +
+    </button>
 
-Now, this.form references the form element that the checkbox is a part of. So, when you write this.form.submit(), 
-you are telling the browser to submit the form that contains the checkbox that was just clicked. This doesn't refer to any
- other forms on the page, only the one that contains the checkbox that triggered the event.
+  </form>
 
-In your code, each checkbox input is wrapped in its own form element. Therefore, when the checkbox is clicked and
- this.form.submit() is called, it only submits the form that the checkbox is inside of, not any other form on the page.
-  The submit() method submits the form and sends the data to the server at the endpoint specified in the action attribute of
-   the form, which in this case is /delete.
+</div>
 
-The second form, which is used to add a new item, is separate and does not get submitted when a checkbox is clicked because 
-it's not part of that particular event's context. It would only be submitted when its own submit button is clicked.
-  -->
+<%- include("footer") -%>
