@@ -18,11 +18,17 @@ app.use(express.static("public"));
 
 // Connect to a MongoDB database named todolistDB with a deprecation fix for the URL parser
 //mongoose.connect("mongodb://localhost:27017/todolistDB", { useNewUrlParser: true });
-//const MONGODB_ATLAS_URI = "mongodb+srv://fjbanezares:Pepito123@cluster0.h5kauwo.mongodb.net/?retryWrites=true&w=majority"
 
+const MONGODB_ATLAS_URI = process.env.MONGODB_URI;
 
+if (!MONGODB_ATLAS_URI) {
+  throw new Error("Falta configurar MONGODB_URI");
+}
 
-const MONGODB_ATLAS_URI = "mongodb+srv://fjbanezares:Pepito123@cluster0.n87gd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+mongoose.connect(MONGODB_ATLAS_URI)
+  .then(() => console.log("Conectado a MongoDB Atlas"))
+  .catch(err => console.error("Error de MongoDB:", err.message));
+
 mongoose.connect(MONGODB_ATLAS_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
 
